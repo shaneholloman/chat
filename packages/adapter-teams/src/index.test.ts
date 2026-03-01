@@ -15,42 +15,46 @@ const mockLogger: Logger = {
 };
 
 describe("ESM compatibility", () => {
-  it("all subpath imports resolve in Node.js ESM (no bare directory imports)", { timeout: 30_000 }, () => {
-    const source = readFileSync(
-      resolve(import.meta.dirname, "index.ts"),
-      "utf-8"
-    );
-    const pkgDir = resolve(import.meta.dirname, "..");
+  it(
+    "all subpath imports resolve in Node.js ESM (no bare directory imports)",
+    { timeout: 30_000 },
+    () => {
+      const source = readFileSync(
+        resolve(import.meta.dirname, "index.ts"),
+        "utf-8"
+      );
+      const pkgDir = resolve(import.meta.dirname, "..");
 
-    // Extract non-relative, non-type-only import specifiers with subpaths
-    const importRegex = /from\s+["']([^"'.][^"']*)["']/g;
-    const specifiers = new Set<string>();
-    for (const [, specifier] of source.matchAll(importRegex)) {
-      specifiers.add(specifier);
-    }
+      // Extract non-relative, non-type-only import specifiers with subpaths
+      const importRegex = /from\s+["']([^"'.][^"']*)["']/g;
+      const specifiers = new Set<string>();
+      for (const [, specifier] of source.matchAll(importRegex)) {
+        specifiers.add(specifier);
+      }
 
-    for (const specifier of specifiers) {
-      // Spawn a real Node.js ESM process — vitest uses esbuild which
-      // tolerates bare directory imports, but Node.js ESM does not.
-      const script = `await import(${JSON.stringify(specifier)})`;
-      try {
-        execSync(`node --input-type=module -e ${JSON.stringify(script)}`, {
-          cwd: pkgDir,
-          stdio: "pipe",
-        });
-      } catch (error: unknown) {
-        const stderr =
-          error instanceof Error && "stderr" in error
-            ? String((error as { stderr: Buffer }).stderr)
-            : "";
-        throw new Error(
-          `Import "${specifier}" fails in Node.js ESM.\n` +
-            "Bare directory imports need an explicit /index.js suffix.\n" +
-            stderr
-        );
+      for (const specifier of specifiers) {
+        // Spawn a real Node.js ESM process — vitest uses esbuild which
+        // tolerates bare directory imports, but Node.js ESM does not.
+        const script = `await import(${JSON.stringify(specifier)})`;
+        try {
+          execSync(`node --input-type=module -e ${JSON.stringify(script)}`, {
+            cwd: pkgDir,
+            stdio: "pipe",
+          });
+        } catch (error: unknown) {
+          const stderr =
+            error instanceof Error && "stderr" in error
+              ? String((error as { stderr: Buffer }).stderr)
+              : "";
+          throw new Error(
+            `Import "${specifier}" fails in Node.js ESM.\n` +
+              "Bare directory imports need an explicit /index.js suffix.\n" +
+              stderr
+          );
+        }
       }
     }
-  });
+  );
 });
 
 describe("TeamsAdapter", () => {
